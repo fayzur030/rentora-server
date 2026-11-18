@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { equipmentCollection } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
-
+import { ObjectId } from 'mongodb'
 const router = Router()
 
 //create equipment
@@ -31,11 +31,35 @@ router.post('/add-equipment', async (req, res) => {
 export default router
 
 // get all equipment
-
 router.get('/equipments', async (req, res) => {
   try {
     const equipments = await equipmentCollection.find().toArray()
-    sendSuccess(res, equipments, 'Equipment fetched successfully')
+    sendSuccess(res, equipments, 'Equipments fetched successfully')
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch equipment',
+    })
+  }
+})
+
+// single equipment api
+router.get('/equipment/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const equipment = await equipmentCollection.findOne({
+      _id: new ObjectId(id),
+    })
+
+    if (!equipment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Equipment not found',
+      })
+    }
+
+    sendSuccess(res, equipment, 'Equipment fetched successfully')
   } catch (error) {
     res.status(500).json({
       success: false,
