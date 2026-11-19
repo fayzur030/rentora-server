@@ -7,6 +7,7 @@ const router = Router()
 router.post('/create-checkout-session', async (req, res) => {
   try {
     const {
+      userEmail,
       equipmentId,
       startDate,
       endDate,
@@ -15,7 +16,8 @@ router.post('/create-checkout-session', async (req, res) => {
       deliveryAddress,
       additionalNotes,
     } = req.body
-    console.log('Booking Payload:', req.body)
+    console.log('Booking User Email:', userEmail)
+    // console.log('Booking Payload:', req.body)
     // Step 1: Validate required fields
     if (
       !equipmentId ||
@@ -100,6 +102,7 @@ router.post('/create-checkout-session', async (req, res) => {
 
     // Step 7: Create booking with pending status
     const booking = {
+      userEmail,
       //   userId: req.user.id,
       equipmentId: new ObjectId(equipmentId),
       startDate: rentalStartDate,
@@ -144,7 +147,8 @@ router.post('/create-checkout-session', async (req, res) => {
       cancel_url: `${process.env.CLIENT_URL}/booking/cancel`,
       metadata: {
         bookingId: bookingCreateResult.insertedId.toString(),
-        // userId: req.user.id,
+        // userId,
+        userEmail,
       },
     })
     // Step 9: Save Stripe session ID
@@ -171,7 +175,7 @@ router.post('/create-checkout-session', async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to create booking',
+      message: error.message,
     })
   }
 })
