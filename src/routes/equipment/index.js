@@ -33,7 +33,24 @@ export default router
 // get all equipment
 router.get('/equipments', async (req, res) => {
   try {
-    const equipments = await equipmentCollection.find().toArray()
+    const query = {}
+    // console.log(req.query.search)
+    // search title and description, location
+    if (req.query.search) {
+      query.$or = [
+        {
+          title: { $regex: req.query.search, $options: 'i' },
+        },
+        {
+          description: { $regex: req.query.search, $options: 'i' },
+        },
+        {
+          location: { $regex: req.query.search, $options: 'i' },
+        },
+      ]
+    }
+
+    const equipments = await equipmentCollection.find(query).toArray()
     sendSuccess(res, equipments, 'Equipments fetched successfully')
   } catch (error) {
     res.status(500).json({
