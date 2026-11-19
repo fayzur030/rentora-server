@@ -26,5 +26,6 @@ async function connectToMongoDB() {
 export const userCollection = db.collection('user')
 export const equipmentCollection = db.collection('equipment')
 export const favoritesCollection = db.collection('favorites')
+export const bookingsCollection = db.collection('bookings')
 
 export default connectToMongoDB
