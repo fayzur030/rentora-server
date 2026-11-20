@@ -102,7 +102,7 @@ router.delete('/remove-favorite', async (req, res) => {
 
 // Get User Favorites
 
-router.get('/favorites', checkAuthenticatedUser, async (req, res) => {
+router.get('/favorites', async (req, res) => {
   try {
     const { userId } = req.query
 

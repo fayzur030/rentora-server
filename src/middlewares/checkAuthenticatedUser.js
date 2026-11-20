@@ -19,12 +19,12 @@ export const checkAuthenticatedUser = async (req, res, next) => {
       issuer: env.CLIENT_URL,
       audience: env.CLIENT_URL,
     })
-
+    console.log('JWT Payload:', payload)
     req.user = {
       name: payload.name,
       email: payload.email,
       role: payload.role,
-      id: payload.id,
+      id: payload.sub,
     }
 
     next()
