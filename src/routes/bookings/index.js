@@ -64,6 +64,7 @@ router.post('/create-checkout-session', async (req, res) => {
         message: 'Equipment not found',
       })
     }
+    const equipmentName = equipment.name
 
     // Step 3: Validate rental dates
     const datePattern = /^\d{4}-\d{2}-\d{2}$/
@@ -140,6 +141,7 @@ router.post('/create-checkout-session', async (req, res) => {
 
     // Step 8: Create temporary checkout intent
     const intent = {
+      equipmentName,
       userEmail,
       equipmentId: new ObjectId(equipmentId),
       startDate: rentalStartDate,

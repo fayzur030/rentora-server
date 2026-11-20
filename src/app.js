@@ -102,7 +102,7 @@ app.post(
       const booking = {
         // 1. Stripe Session ID
         stripeSessionId: session.id,
-
+        equipmentName: intent.equipmentName,
         // 2. Rental Information
         startDate: intent.startDate,
         endDate: intent.endDate,
