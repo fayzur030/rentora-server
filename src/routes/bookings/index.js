@@ -222,4 +222,47 @@ router.post('/create-checkout-session', async (req, res) => {
   }
 })
 
+// Customer dashboard my-rentals api:
+
+// router.get('/my-rentals', async (req, res) => {
+//   const userEmail = req.user.email
+//   try {
+//     const bookingRental = await bookingsCollection
+//       .find({ userEmail })
+//       .sort({ createdAt: -1 })
+//       .toArray()
+
+//     res.send({
+//       success: true,
+//       message: 'Booking rental successfully',
+//       data: bookingRental,
+//     })
+//   } catch (error) {
+//     console.error('Error fetching bookings rental', error)
+//     req.status(500).send({
+//       success: false,
+//       message: 'Failed ro fetch bookings rental',
+//       error: error.message,
+//     })
+//   }
+// })
+
+router.get('/my-rentals', async (req, res) => {
+  try {
+    const result = await bookingsCollection.find().toArray()
+    res.send({
+      success: true.valueOf,
+      message: 'Booking rental successfully',
+      data: result,
+    })
+  } catch (error) {
+    console.error('Error fetching bookings rental', error)
+    res.send(500).send({
+      success: false,
+      message: 'Failed to fetch bookings rental',
+      error: error.message,
+    })
+  }
+})
+
 export default router
