@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { ObjectId } from 'mongodb'
 import { equipmentCollection, favoritesCollection } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
+import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser.js'
 const router = Router()
 
 // Add to Favorites
@@ -101,7 +102,7 @@ router.delete('/remove-favorite', async (req, res) => {
 
 // Get User Favorites
 
-router.get('/favorites', async (req, res) => {
+router.get('/favorites', checkAuthenticatedUser, async (req, res) => {
   try {
     const { userId } = req.query
 
