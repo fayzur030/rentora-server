@@ -6,7 +6,7 @@ import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser
 const router = Router()
 
 // Add to Favorites
-router.post('/add-favorite', async (req, res) => {
+router.post('/add-favorite', checkAuthenticatedUser, async (req, res) => {
   try {
     const { userId, equipmentId } = req.body
     // Validate required fields
@@ -64,7 +64,7 @@ router.post('/add-favorite', async (req, res) => {
 
 // Remove Favorite
 
-router.delete('/remove-favorite', async (req, res) => {
+router.delete('/remove-favorite', checkAuthenticatedUser, async (req, res) => {
   try {
     const { equipmentId, userId } = req.body
     if (!equipmentId || !userId) {
@@ -102,7 +102,7 @@ router.delete('/remove-favorite', async (req, res) => {
 
 // Get User Favorites
 
-router.get('/favorites', async (req, res) => {
+router.get('/favorites', checkAuthenticatedUser, async (req, res) => {
   try {
     const { userId } = req.query
 

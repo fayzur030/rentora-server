@@ -2,11 +2,12 @@ import { Router } from 'express'
 import { equipmentCollection } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
+import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser.js'
 /** @type {import("mongodb").Db} */
 const router = Router()
 
 //create equipment
-router.post('/add-equipment', async (req, res) => {
+router.post('/add-equipment', checkAuthenticatedUser, async (req, res) => {
   try {
     const equipmentData = {
       ...req.body,
@@ -122,7 +123,7 @@ router.get('/equipments', async (req, res) => {
 })
 
 // single equipment api
-router.get('/equipment/:id', async (req, res) => {
+router.get('/equipment/:id', checkAuthenticatedUser, async (req, res) => {
   try {
     const { id } = req.params
 
