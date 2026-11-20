@@ -15,4 +15,5 @@ export const env = {
   PORT: Number(process.env.PORT) || 5000,
   MONGO_CLIENT_URI,
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000',
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 }

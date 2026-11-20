@@ -16,7 +16,7 @@ router.post('/create-checkout-session', async (req, res) => {
       deliveryAddress,
       additionalNotes,
     } = req.body
-    console.log('Booking User Email:', userEmail)
+    // console.log('Booking User Email:', userEmail)
     // console.log('Booking Payload:', req.body)
     // Step 1: Validate required fields
     if (
@@ -151,6 +151,7 @@ router.post('/create-checkout-session', async (req, res) => {
         userEmail,
       },
     })
+
     // Step 9: Save Stripe session ID
     await bookingsCollection.updateOne(
       { _id: bookingCreateResult.insertedId },
