@@ -59,7 +59,14 @@ router.post('/add-favorite', checkAuthenticatedUser, async (req, res) => {
       'Equipment added to favorites successfully',
       201
     )
-  } catch (error) {}
+  } catch (error) {
+    console.error('Add Favorite Error:', error)
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to add favorite',
+    })
+  }
 })
 
 // Remove Favorite

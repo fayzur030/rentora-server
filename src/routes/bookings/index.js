@@ -247,9 +247,9 @@ router.get('/my-rentals', checkAuthenticatedUser, async (req, res) => {
     })
   } catch (error) {
     console.error('Error fetching bookings rental', error)
-    req.status(500).send({
+    res.status(500).send({
       success: false,
-      message: 'Failed ro fetch bookings rental',
+      message: 'Failed to fetch bookings rental',
       error: error.message,
     })
   }
