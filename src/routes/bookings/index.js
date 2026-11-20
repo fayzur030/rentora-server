@@ -6,6 +6,7 @@ import {
   bookingsCollection,
 } from '../../config/db.js'
 import { stripe } from '../../config/stripe.js'
+import { env } from '../../config/env.js'
 
 const router = Router()
 
@@ -178,8 +179,8 @@ router.post('/create-checkout-session', async (req, res) => {
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.CLIENT_URL}/booking/cancel`,
+        success_url: `${env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${env.CLIENT_URL}/booking/cancel`,
         metadata: {
           checkoutIntentId: intentResult.insertedId.toString(),
         },

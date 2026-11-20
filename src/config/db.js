@@ -26,6 +26,16 @@ async function connectToMongoDB() {
       }
     )
 
+    await db.collection('payments').createIndex(
+      { stripeSessionId: 1 },
+      {
+        unique: true,
+        partialFilterExpression: {
+          stripeSessionId: { $type: 'string' },
+        },
+      }
+    )
+
     console.log('You successfully connected to MongoDB!')
 
     return db
@@ -39,4 +49,5 @@ export const equipmentCollection = db.collection('equipment')
 export const favoritesCollection = db.collection('favorites')
 export const checkoutIntentsCollection = db.collection('checkoutIntents')
 export const bookingsCollection = db.collection('bookings')
+export const paymentsCollection = db.collection('payments')
 export default connectToMongoDB

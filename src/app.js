@@ -3,7 +3,11 @@ import cors from 'cors'
 import routes from './routes/index.js'
 import { env } from './config/env.js'
 import { stripe } from './config/stripe.js'
-import { bookingsCollection, checkoutIntentsCollection } from './config/db.js'
+import {
+  bookingsCollection,
+  checkoutIntentsCollection,
+  paymentsCollection,
+} from './config/db.js'
 import { ObjectId } from 'mongodb'
 
 const app = express()
@@ -27,7 +31,7 @@ app.post(
       event = stripe.webhooks.constructEvent(
         req.body,
         req.headers['stripe-signature'],
-        process.env.STRIPE_WEBHOOK_SECRET
+        env.STRIPE_WEBHOOK_SECRET
       )
     } catch (error) {
       console.error('Stripe webhook verification failed:', error.message)
@@ -159,7 +163,46 @@ app.post(
         console.log('Booking already exists:', session.id)
       }
 
-      // Step 9: Mark checkout intent as paid.
+      const savedBooking = await bookingsCollection.findOne({
+        stripeSessionId: session.id,
+      })
+
+      if (!savedBooking) {
+        throw new Error(
+          `Booking was not found for Stripe session ${session.id}`
+        )
+      }
+
+      // Check if payment already exists
+      const existingPayment = await paymentsCollection.findOne({
+        stripeSessionId: session.id,
+      })
+
+      // Save payment if it does not exist
+      if (!existingPayment) {
+        const payment = {
+          checkoutIntentId: intent._id,
+          bookingId: savedBooking._id,
+          stripeSessionId: session.id,
+          paymentIntentId:
+            typeof session.payment_intent === 'string'
+              ? session.payment_intent
+              : session.payment_intent?.id,
+          customerEmail: session.customer_details?.email || intent.userEmail,
+          amount: session.amount_total,
+          currency: session.currency,
+          paymentStatus: 'paid',
+          paidAt: new Date(),
+          createdAt: new Date(),
+        }
+
+        await paymentsCollection.insertOne(payment)
+
+        console.log('Payment saved successfully')
+      } else {
+        console.log('Payment already exists')
+      }
+      // Mark the checkout intent paid after both records are persisted.
       await checkoutIntentsCollection.updateOne(
         { _id: intent._id },
         {
