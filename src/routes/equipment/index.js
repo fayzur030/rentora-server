@@ -146,3 +146,26 @@ router.get('/equipment/:id', checkAuthenticatedUser, async (req, res) => {
     })
   }
 })
+
+// owner dashboard: my-equipment
+router.get('/my-equipments', checkAuthenticatedUser, async (req, res) => {
+  const ownerId = req.user.id
+  console.log(ownerId, 'from client')
+  try {
+    const myEquipments = await equipmentCollection
+      .find({ 'owner.ownerId': ownerId })
+      .sort({ createdAt: -1 })
+      .toArray()
+
+    sendSuccess(res, myEquipments, 'My equipments fetched successfully')
+  } catch (error) {
+    console.error('Get My Equipments Error:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch my equipments',
+    })
+  }
+})
+
+router.delet
