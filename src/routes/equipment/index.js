@@ -3,7 +3,7 @@ import { equipmentCollection } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
 import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser.js'
-/** @type {import("mongodb").Db} */
+/** @type {import("express").Router} */
 const router = Router()
 
 //create equipment
@@ -150,7 +150,7 @@ router.get('/equipment/:id', checkAuthenticatedUser, async (req, res) => {
 // owner dashboard: my-equipment
 router.get('/my-equipments', checkAuthenticatedUser, async (req, res) => {
   const ownerId = req.user.id
-  console.log(ownerId, 'from client')
+
   try {
     const myEquipments = await equipmentCollection
       .find({ 'owner.ownerId': ownerId })
@@ -168,4 +168,80 @@ router.get('/my-equipments', checkAuthenticatedUser, async (req, res) => {
   }
 })
 
-router.delet
+router.delete(
+  '/delete-equipment/:id',
+  checkAuthenticatedUser,
+  async (req, res) => {
+    const { id } = req.params
+
+    try {
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid equipment ID',
+        })
+      }
+
+      const result = await equipmentCollection.deleteOne({
+        _id: new ObjectId(id),
+      })
+      if (result.deletedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Equipment not found',
+        })
+      }
+
+      sendSuccess(res, null, 'Equipment deleted successfully')
+    } catch (error) {
+      console.error('Delete Equipment Error:', error)
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete equipment',
+      })
+    }
+  }
+)
+
+router.patch(
+  '/update-equipment/:id',
+  checkAuthenticatedUser,
+  async (req, res) => {
+    const { id } = req.params
+    try {
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid equipment ID',
+        })
+      }
+      const { _id, ...updatedEquipment } = req.body
+      const result = await equipmentCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+        },
+        {
+          $set: updatedEquipment,
+        }
+      )
+      if (result.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Equipment not found',
+        })
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Equipment updated successfully',
+      })
+    } catch (error) {
+      console.error('Update Equipment Error:', error)
+
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to update equipment',
+      })
+    }
+  }
+)
