@@ -18,4 +18,16 @@ router.get('/all-users', checkAuthenticatedUser, async (req, res) => {
   }
 })
 
+// update role
+
+router.patch('/update-role', checkAuthenticatedUser, async (req, res) => {
+  const { id } = req.params
+  const { role } = req.body
+  try {
+    
+  } catch (error) {
+    
+  }
+})
+
 export default router

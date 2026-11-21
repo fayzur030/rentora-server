@@ -34,3 +34,18 @@ export const checkAuthenticatedUser = async (req, res, next) => {
     })
   }
 }
+
+export const verifyRole = (roles) => {
+  return (req, res, next) => {
+    const role = req.user?.role
+
+    if (roles.includes(role)) {
+      return next()
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'You do not have permission to access this resource',
+    })
+  }
+}
