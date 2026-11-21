@@ -123,36 +123,45 @@ router.delete(
 
 // Get User Favorites
 
-router.get('/favorites', checkAuthenticatedUser, async (req, res) => {
-  try {
-    const { userId } = req.query
+router.get(
+  '/favorites',
+  checkAuthenticatedUser,
+  verifyRole(['customer', 'admin']),
+  async (req, res) => {
+    try {
+      const { userId } = req.query
 
-    if (!userId) {
-      return res.status(400).json({
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'User ID is required',
+        })
+      }
+
+      const favorites = await favoritesCollection.find({ userId }).toArray()
+
+      const equipmentId = favorites.map((favorite) => favorite.equipmentId)
+
+      const equipmentDetails = await equipmentCollection
+        .find({
+          _id: { $in: equipmentId },
+        })
+        .toArray()
+
+      return sendSuccess(
+        res,
+        equipmentDetails,
+        'Favorites fetched successfully'
+      )
+    } catch (error) {
+      console.error('Get Favorites Error:', error)
+
+      return res.status(500).json({
         success: false,
-        message: 'User ID is required',
+        message: 'Failed to fetch favorites',
       })
     }
-
-    const favorites = await favoritesCollection.find({ userId }).toArray()
-
-    const equipmentId = favorites.map((favorite) => favorite.equipmentId)
-
-    const equipmentDetails = await equipmentCollection
-      .find({
-        _id: { $in: equipmentId },
-      })
-      .toArray()
-
-    return sendSuccess(res, equipmentDetails, 'Favorites fetched successfully')
-  } catch (error) {
-    console.error('Get Favorites Error:', error)
-
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch favorites',
-    })
   }
-})
+)
 
 export default router

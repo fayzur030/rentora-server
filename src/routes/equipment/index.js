@@ -10,29 +10,34 @@ import {
 const router = Router()
 
 //create equipment
-router.post('/add-equipment', checkAuthenticatedUser, async (req, res) => {
-  try {
-    const equipmentData = {
-      ...req.body,
-      status: 'pending',
-      createdAt: new Date(),
-    }
-    console.log(equipmentData)
-    const result = await equipmentCollection.insertOne(equipmentData)
+router.post(
+  '/add-equipment',
+  checkAuthenticatedUser,
+  verifyRole('owner'),
+  async (req, res) => {
+    try {
+      const equipmentData = {
+        ...req.body,
+        status: 'pending',
+        createdAt: new Date(),
+      }
+      console.log(equipmentData)
+      const result = await equipmentCollection.insertOne(equipmentData)
 
-    sendSuccess(
-      res,
-      { insertedId: result.insertedId },
-      'Equipment added successfully',
-      201
-    )
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to add equipment',
-    })
+      sendSuccess(
+        res,
+        { insertedId: result.insertedId },
+        'Equipment added successfully',
+        201
+      )
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to add equipment',
+      })
+    }
   }
-})
+)
 
 export default router
 

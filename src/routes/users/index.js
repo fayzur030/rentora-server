@@ -8,19 +8,24 @@ import {
 import { ObjectId } from 'mongodb'
 const router = Router()
 
-router.get('/all-users', checkAuthenticatedUser, async (req, res) => {
-  try {
-    const result = await userCollection.find().toArray()
-    return sendSuccess(res, result, 'Users fetched successfully')
-  } catch (error) {
-    console.error('Get User Error:', error)
+router.get(
+  '/all-users',
+  checkAuthenticatedUser,
+  verifyRole(['admin']),
+  async (req, res) => {
+    try {
+      const result = await userCollection.find().toArray()
+      return sendSuccess(res, result, 'Users fetched successfully')
+    } catch (error) {
+      console.error('Get User Error:', error)
 
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch users',
-    })
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch users',
+      })
+    }
   }
-})
+)
 
 // update role
 router.patch(
@@ -39,10 +44,12 @@ router.patch(
         })
       }
 
-      if (!role || typeof role !== 'string' || role.trim() === '') {
+      const allowedRoles = ['customer', 'owner', 'admin']
+
+      if (!allowedRoles.includes(role)) {
         return res.status(400).json({
           success: false,
-          message: 'Role is required',
+          message: 'Invalid role',
         })
       }
 
