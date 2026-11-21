@@ -2,7 +2,10 @@ import { Router } from 'express'
 import { bookingsCollection, equipmentCollection } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
-import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser.js'
+import {
+  checkAuthenticatedUser,
+  verifyRole,
+} from '../../middlewares/checkAuthenticatedUser.js'
 /** @type {import("express").Router} */
 const router = Router()
 
@@ -171,6 +174,7 @@ router.get('/my-equipments', checkAuthenticatedUser, async (req, res) => {
 router.delete(
   '/delete-equipment/:id',
   checkAuthenticatedUser,
+  verifyRole(['owner', 'admin']),
   async (req, res) => {
     const { id } = req.params
 
@@ -207,6 +211,7 @@ router.delete(
 router.patch(
   '/update-equipment/:id',
   checkAuthenticatedUser,
+  verifyRole(['owner', 'admin']),
   async (req, res) => {
     const { id } = req.params
     try {
