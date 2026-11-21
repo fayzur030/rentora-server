@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { equipmentCollection } from '../../config/db.js'
+import { bookingsCollection, equipmentCollection } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
 import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser.js'
@@ -241,6 +241,50 @@ router.patch(
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to update equipment',
+      })
+    }
+  }
+)
+
+// my equipment rental
+
+router.get(
+  '/my-equipment-rentals',
+  checkAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const ownerId = req.user.id
+
+      // get owner equipments
+      const myEquipments = await equipmentCollection
+        .find({
+          'owner.ownerId': ownerId,
+        })
+        .toArray()
+
+      // Get equipment IDs
+
+      const equipmentId = myEquipments.map((equipment) => equipment._id)
+
+      // get all rentalBookings
+      const result = await bookingsCollection
+        .find({
+          equipmentId: { $in: equipmentId },
+        })
+        .sort({ createdAt: -1 })
+        .toArray()
+
+      res.status(200).json({
+        success: true,
+        message: 'My equipment rentals fetched successfully',
+        data: result,
+      })
+    } catch (error) {
+      console.error('My Equipment Rentals Error:', error)
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch equipment rentals',
       })
     }
   }
