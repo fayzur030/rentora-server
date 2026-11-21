@@ -4,10 +4,15 @@ import {
   checkoutIntentsCollection,
   equipmentCollection,
   bookingsCollection,
+  userCollection,
 } from '../../config/db.js'
 import { stripe } from '../../config/stripe.js'
 import { env } from '../../config/env.js'
-import { checkAuthenticatedUser } from '../../middlewares/checkAuthenticatedUser.js'
+import {
+  checkAuthenticatedUser,
+  verifyRole,
+} from '../../middlewares/checkAuthenticatedUser.js'
+import { sendSuccess } from '../../utils/apiResponse.js'
 
 const router = Router()
 
@@ -256,5 +261,54 @@ router.get('/my-rentals', checkAuthenticatedUser, async (req, res) => {
     })
   }
 })
+
+// all rental
+
+router.get(
+  '/admin/rentals',
+  checkAuthenticatedUser,
+  verifyRole(['admin']),
+  async (req, res) => {
+    try {
+      // 1. Get all bookings
+      const bookings = await bookingsCollection
+        .find({})
+        .sort({ createdAt: -1 })
+        .toArray()
+
+      const rentals = []
+
+      // 2. Get customer, equipment and owner information
+
+      for (const booking of bookings) {
+        const customer = await userCollection.findOne({
+          email: booking.userEmail,
+        })
+
+        const equipment = await equipmentCollection.findOne({
+          _id: booking.equipmentId,
+        })
+
+        const owner = equipment?.owner || null
+
+        // 3. Store all information together
+        rentals.push({
+          ...booking,
+          customer,
+          owner,
+          equipment,
+        })
+      }
+      return sendSuccess(res, rentals, 'All rentals retrieved successfully')
+    } catch (error) {
+      console.error(error)
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve rentals',
+      })
+    }
+  }
+)
 
 export default router
