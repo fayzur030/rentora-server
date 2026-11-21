@@ -17,6 +17,7 @@ router.post(
   async (req, res) => {
     try {
       const {
+        userName,
         userEmail,
         equipmentId,
         startDate,
@@ -26,7 +27,7 @@ router.post(
         deliveryAddress,
         additionalNotes,
       } = req.body
-
+      console.log(req.body)
       // Step 1: Validate required fields
       if (
         !userEmail ||
@@ -142,10 +143,11 @@ router.post(
           message: 'Payment amount is too small',
         })
       }
-
+      // console.log('User Name:', userName)
       // Step 8: Create temporary checkout intent
       const intent = {
         equipmentName,
+        userName,
         userEmail,
         equipmentId: new ObjectId(equipmentId),
         startDate: rentalStartDate,
@@ -163,7 +165,7 @@ router.post(
         createdAt: new Date(),
         updatedAt: new Date(),
       }
-
+      // console.log('Webhook Intent UserName:', intent.userName)
       const intentResult = await checkoutIntentsCollection.insertOne(intent)
 
       // Step 9: Create Stripe Checkout Session

@@ -115,6 +115,7 @@ app.post(
         totalAmount: intent.totalAmount,
 
         // 4. Customer Information
+        customerName: intent.userName,
         userEmail: intent.userEmail,
         contactNumber: intent.contactNumber,
         deliveryAddress: intent.deliveryAddress,
