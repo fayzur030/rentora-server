@@ -6,6 +6,7 @@ import {
   bookingsCollection,
   userCollection,
   client,
+  paymentsCollection,
 } from '../../config/db.js'
 import { stripe } from '../../config/stripe.js'
 import { env } from '../../config/env.js'
@@ -479,6 +480,14 @@ router.get(
         .sort({ createdAt: -1 })
         .toArray()
 
+      const bookingIds = bookings.map((booking) => booking._id)
+      const payments = await paymentsCollection
+        .find({ bookingId: { $in: bookingIds } })
+        .toArray()
+      const paymentsByBookingId = new Map(
+        payments.map((payment) => [payment.bookingId.toString(), payment])
+      )
+
       const rentals = []
 
       // 2. Get customer, equipment and owner information
@@ -495,8 +504,18 @@ router.get(
         const owner = equipment?.owner || null
 
         // 3. Store all information together
+        const payment = paymentsByBookingId.get(booking._id.toString())
+
         rentals.push({
           ...booking,
+          payment: payment
+            ? {
+                paymentStatus: payment.paymentStatus,
+                amount: payment.amount,
+                currency: payment.currency,
+                paidAt: payment.paidAt,
+              }
+            : null,
           customer,
           owner,
           equipment,

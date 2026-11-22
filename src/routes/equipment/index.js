@@ -3,6 +3,7 @@ import {
   bookingsCollection,
   categoriesCollection,
   equipmentCollection,
+  paymentsCollection,
 } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
@@ -334,10 +335,33 @@ router.get(
         .sort({ createdAt: -1 })
         .toArray()
 
+      const bookingIds = result.map((booking) => booking._id)
+      const payments = await paymentsCollection
+        .find({ bookingId: { $in: bookingIds } })
+        .toArray()
+      const paymentsByBookingId = new Map(
+        payments.map((payment) => [payment.bookingId.toString(), payment])
+      )
+      const rentalsWithPayment = result.map((booking) => {
+        const payment = paymentsByBookingId.get(booking._id.toString())
+
+        return {
+          ...booking,
+          payment: payment
+            ? {
+                paymentStatus: payment.paymentStatus,
+                amount: payment.amount,
+                currency: payment.currency,
+                paidAt: payment.paidAt,
+              }
+            : null,
+        }
+      })
+
       res.status(200).json({
         success: true,
         message: 'My equipment rentals fetched successfully',
-        data: result,
+        data: rentalsWithPayment,
       })
     } catch (error) {
       console.error('My Equipment Rentals Error:', error)
