@@ -1,5 +1,9 @@
 import { Router } from 'express'
-import { bookingsCollection, equipmentCollection } from '../../config/db.js'
+import {
+  bookingsCollection,
+  categoriesCollection,
+  equipmentCollection,
+} from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
 import {
@@ -343,6 +347,26 @@ router.get('/featured-equipment', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch featured equipment',
+    })
+  }
+})
+
+// popular equipment by category
+
+router.get('/popular-equipments', async (req, res) => {
+  try {
+    const popularEquipments = await categoriesCollection.find().toArray()
+    sendSuccess(
+      res,
+      popularEquipments,
+      'Popular equipment fetched successfully'
+    )
+  } catch (error) {
+    console.error('Popular Equipment Error:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch popular equipment',
     })
   }
 })
