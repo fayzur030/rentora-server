@@ -42,7 +42,10 @@ router.post(
 // get all equipment
 router.get('/equipments', async (req, res) => {
   try {
-    const query = {}
+    const query = {
+      availableQuantity: { $gt: 0 },
+      status: 'approved',
+    }
 
     // Search Filter
     const search = req.query.search
@@ -152,6 +155,31 @@ router.get('/equipment/:id', checkAuthenticatedUser, async (req, res) => {
     })
   }
 })
+
+// todo: admin GET /admin/equipments
+
+router.get(
+  '/admin/equipments',
+  checkAuthenticatedUser,
+  verifyRole(['admin']),
+  async (req, res) => {
+    try {
+      const equipments = await equipmentCollection
+        .find({})
+        .sort({ createdAt: -1 })
+        .toArray()
+
+      sendSuccess(res, equipments, 'All equipments fetched successfully')
+    } catch (error) {
+      console.error('Get Admin Equipments Error:', error)
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch equipments',
+      })
+    }
+  }
+)
 
 // owner dashboard: my-equipment
 router.get('/my-equipments', checkAuthenticatedUser, async (req, res) => {
