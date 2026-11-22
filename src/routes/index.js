@@ -4,6 +4,7 @@ import equipmentRouter from './equipment/index.js'
 import favoriteRouter from './favorites/index.js'
 import bookingsRouter from './bookings/index.js'
 import usersRouter from './users/index.js'
+import categoriesRouter from './categories/index.js'
 const router = Router()
 
 router.get('/test', (req, res) => {
@@ -15,5 +16,6 @@ router.use('/equipment', equipmentRouter)
 router.use('/favorite', favoriteRouter)
 router.use('/bookings', bookingsRouter)
 router.use('/users', usersRouter)
+router.use('/categories', categoriesRouter)
 
 export default router

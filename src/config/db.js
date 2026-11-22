@@ -50,4 +50,5 @@ export const favoritesCollection = db.collection('favorites')
 export const checkoutIntentsCollection = db.collection('checkoutIntents')
 export const bookingsCollection = db.collection('bookings')
 export const paymentsCollection = db.collection('payments')
+export const categoriesCollection = db.collection('categories')
 export default connectToMongoDB

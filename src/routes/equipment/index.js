@@ -39,8 +39,6 @@ router.post(
   }
 )
 
-export default router
-
 // get all equipment
 router.get('/equipments', async (req, res) => {
   try {
@@ -320,3 +318,5 @@ router.get('/featured-equipment', async (req, res) => {
     })
   }
 })
+
+export default router
