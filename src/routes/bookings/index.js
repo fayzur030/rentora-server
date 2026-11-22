@@ -32,7 +32,7 @@ router.post(
         deliveryAddress,
         additionalNotes,
       } = req.body
-      console.log(req.body)
+      // console.log(req.body)
       // Step 1: Validate required fields
       if (
         !userEmail ||
@@ -192,6 +192,8 @@ router.post(
             },
           ],
           mode: 'payment',
+          // success_url: `${env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+          // cancel_url: `${env.CLIENT_URL}/booking/cancel`,
           success_url: `${env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${env.CLIENT_URL}/booking/cancel`,
           metadata: {
