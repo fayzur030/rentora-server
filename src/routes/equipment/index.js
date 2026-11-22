@@ -299,3 +299,24 @@ router.get(
     }
   }
 )
+
+// feature equipment
+
+router.get('/featured-equipment', async (req, res) => {
+  try {
+    const equipments = await equipmentCollection
+      .find({ status: 'approved' })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .toArray()
+
+    sendSuccess(res, equipments, 'Featured equipment fetched successfully')
+  } catch (error) {
+    console.error('Featured Equipment Error:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch featured equipment',
+    })
+  }
+})
