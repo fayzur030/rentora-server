@@ -17,11 +17,16 @@ const router = Router()
 router.post(
   '/add-equipment',
   checkAuthenticatedUser,
-  verifyRole('owner'),
+  verifyRole(['owner']),
   async (req, res) => {
     try {
       const equipmentData = {
         ...req.body,
+        owner: {
+          ownerId: req.user.id,
+          name: req.user.name,
+          email: req.user.email,
+        },
         status: 'pending',
         createdAt: new Date(),
       }
@@ -186,25 +191,30 @@ router.get(
 )
 
 // owner dashboard: my-equipment
-router.get('/my-equipments', checkAuthenticatedUser, async (req, res) => {
-  const ownerId = req.user.id
+router.get(
+  '/my-equipments',
+  checkAuthenticatedUser,
+  verifyRole(['owner']),
+  async (req, res) => {
+    const ownerId = req.user.id
 
-  try {
-    const myEquipments = await equipmentCollection
-      .find({ 'owner.ownerId': ownerId })
-      .sort({ createdAt: -1 })
-      .toArray()
+    try {
+      const myEquipments = await equipmentCollection
+        .find({ 'owner.ownerId': ownerId })
+        .sort({ createdAt: -1 })
+        .toArray()
 
-    sendSuccess(res, myEquipments, 'My equipments fetched successfully')
-  } catch (error) {
-    console.error('Get My Equipments Error:', error)
+      sendSuccess(res, myEquipments, 'My equipments fetched successfully')
+    } catch (error) {
+      console.error('Get My Equipments Error:', error)
 
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch my equipments',
-    })
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch my equipments',
+      })
+    }
   }
-})
+)
 
 router.delete(
   '/delete-equipment/:id',
@@ -221,9 +231,14 @@ router.delete(
         })
       }
 
-      const result = await equipmentCollection.deleteOne({
-        _id: new ObjectId(id),
-      })
+      const equipmentId = new ObjectId(id)
+      const query = { _id: equipmentId }
+
+      if (req.user.role === 'owner') {
+        query['owner.ownerId'] = req.user.id
+      }
+
+      const result = await equipmentCollection.deleteOne(query)
       if (result.deletedCount === 0) {
         return res.status(404).json({
           success: false,
@@ -256,15 +271,19 @@ router.patch(
           message: 'Invalid equipment ID',
         })
       }
-      const { _id, ...updatedEquipment } = req.body
-      const result = await equipmentCollection.updateOne(
-        {
-          _id: new ObjectId(id),
-        },
-        {
-          $set: updatedEquipment,
-        }
-      )
+
+      const equipmentId = new ObjectId(id)
+      const query = { _id: equipmentId }
+
+      if (req.user.role === 'owner') {
+        query['owner.ownerId'] = req.user.id
+      }
+
+      const { _id, owner, status, createdAt, ...updatedEquipment } = req.body
+
+      const result = await equipmentCollection.updateOne(query, {
+        $set: updatedEquipment,
+      })
       if (result.matchedCount === 0) {
         return res.status(404).json({
           success: false,
@@ -291,6 +310,7 @@ router.patch(
 router.get(
   '/my-equipment-rentals',
   checkAuthenticatedUser,
+  verifyRole(['owner']),
   async (req, res) => {
     try {
       const ownerId = req.user.id
