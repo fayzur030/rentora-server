@@ -3,7 +3,7 @@ import { env } from './env.js'
 
 export const DB_NAME = 'rentora'
 
-const client = new MongoClient(env.MONGO_CLIENT_URI)
+export const client = new MongoClient(env.MONGO_CLIENT_URI)
 /** @type {import("mongodb").Db} */
 let db = client.db(DB_NAME)
 

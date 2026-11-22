@@ -5,6 +5,7 @@ import {
   equipmentCollection,
   bookingsCollection,
   userCollection,
+  client,
 } from '../../config/db.js'
 import { stripe } from '../../config/stripe.js'
 import { env } from '../../config/env.js'
@@ -20,10 +21,10 @@ router.post(
   '/create-checkout-session',
   checkAuthenticatedUser,
   async (req, res) => {
+    const session = client.startSession()
+
     try {
       const {
-        userName,
-        userEmail,
         equipmentId,
         startDate,
         endDate,
@@ -32,10 +33,9 @@ router.post(
         deliveryAddress,
         additionalNotes,
       } = req.body
-      // console.log(req.body)
+
       // Step 1: Validate required fields
       if (
-        !userEmail ||
         !equipmentId ||
         !startDate ||
         !endDate ||
@@ -63,20 +63,7 @@ router.post(
         })
       }
 
-      // Step 2: Find equipment
-      const equipment = await equipmentCollection.findOne({
-        _id: new ObjectId(equipmentId),
-      })
-
-      if (!equipment) {
-        return res.status(404).json({
-          success: false,
-          message: 'Equipment not found',
-        })
-      }
-      const equipmentName = equipment.name
-
-      // Step 3: Validate rental dates
+      // Step 2: Validate rental dates
       const datePattern = /^\d{4}-\d{2}-\d{2}$/
 
       if (!datePattern.test(startDate) || !datePattern.test(endDate)) {
@@ -93,8 +80,6 @@ router.post(
       today.setUTCHours(0, 0, 0, 0)
 
       if (
-        Number.isNaN(rentalStartDate.getTime()) ||
-        Number.isNaN(rentalEndDate.getTime()) ||
         rentalStartDate.toISOString().slice(0, 10) !== startDate ||
         rentalEndDate.toISOString().slice(0, 10) !== endDate ||
         rentalStartDate < today ||
@@ -106,140 +91,356 @@ router.post(
         })
       }
 
-      // Step 4: Calculate rental duration
+      // Step 3: Calculate rental duration
       const rentalDuration = Math.ceil(
         (rentalEndDate - rentalStartDate) / (1000 * 60 * 60 * 24)
       )
 
-      // Step 5: Check equipment availability
-      const existingBookings = await bookingsCollection
-        .find({
-          equipmentId: new ObjectId(equipmentId),
-          bookingStatus: { $in: ['pending', 'confirmed'] },
-          startDate: { $lt: rentalEndDate },
-          endDate: { $gt: rentalStartDate },
-        })
-        .toArray()
+      const equipmentObjectId = new ObjectId(equipmentId)
 
-      const bookedQuantity = existingBookings.reduce(
-        (total, booking) => total + booking.quantity,
-        0
-      )
+      const userName = req.user.name
+      const userEmail = req.user.email
 
-      const availability = equipment.availability - bookedQuantity
+      let intent
 
-      if (quantity > availability) {
-        return res.status(400).json({
-          success: false,
-          message: `Only ${Math.max(availability, 0)} equipment available`,
-        })
-      }
+      // Step 4: Check availability and reserve quantity atomically
+      await session.withTransaction(async () => {
+        const equipment = await equipmentCollection.findOne(
+          { _id: equipmentObjectId },
+          { session }
+        )
 
-      // Step 6: Calculate total rental amount
-      const pricePerDay = equipment.rentalPrice
-      const totalAmount = pricePerDay * rentalDuration * quantity
+        if (!equipment) {
+          throw new Error('EQUIPMENT_NOT_FOUND')
+        }
 
-      // Step 7: Convert BDT to USD cents
-      const amountInCents = Math.round(totalAmount * 0.0084 * 100)
+        if (equipment.status !== 'approved') {
+          throw new Error('EQUIPMENT_NOT_AVAILABLE')
+        }
 
-      if (amountInCents < 50) {
-        return res.status(400).json({
-          success: false,
-          message: 'Payment amount is too small',
-        })
-      }
-      // console.log('User Name:', userName)
-      // Step 8: Create temporary checkout intent
-      const intent = {
-        equipmentName,
-        userName,
-        userEmail,
-        equipmentId: new ObjectId(equipmentId),
-        startDate: rentalStartDate,
-        endDate: rentalEndDate,
-        rentalDuration,
-        quantity,
-        contactNumber,
-        deliveryAddress,
-        additionalNotes: additionalNotes || '',
-        pricePerDay,
-        totalAmount,
-        amountInCents,
-        currency: 'usd',
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      // console.log('Webhook Intent UserName:', intent.userName)
-      const intentResult = await checkoutIntentsCollection.insertOne(intent)
+        // Write to equipment document to prevent concurrent
+        // booking transactions from reserving the same inventory.
+        await equipmentCollection.updateOne(
+          { _id: equipmentObjectId },
+          { $inc: { bookingLock: 1 } },
+          { session }
+        )
 
-      // Step 9: Create Stripe Checkout Session
-      let session
+        // Find overlapping confirmed bookings
+        const existingBookings = await bookingsCollection
+          .find(
+            {
+              equipmentId: equipmentObjectId,
+              bookingStatus: {
+                $in: ['pending', 'confirmed', 'active'],
+              },
+              startDate: { $lt: rentalEndDate },
+              endDate: { $gt: rentalStartDate },
+            },
+            { session }
+          )
+          .toArray()
+
+        // Find overlapping active checkout intents
+        const pendingIntents = await checkoutIntentsCollection
+          .find(
+            {
+              equipmentId: equipmentObjectId,
+              status: 'pending',
+              expiresAt: { $gt: new Date() },
+              startDate: { $lt: rentalEndDate },
+              endDate: { $gt: rentalStartDate },
+            },
+            { session }
+          )
+          .toArray()
+
+        const bookedQuantity = existingBookings.reduce(
+          (total, booking) => total + booking.quantity,
+          0
+        )
+
+        const reservedQuantity = pendingIntents.reduce(
+          (total, intent) => total + intent.quantity,
+          0
+        )
+
+        const remainingQuantity =
+          equipment.availableQuantity - bookedQuantity - reservedQuantity
+
+        if (quantity > remainingQuantity) {
+          throw new Error('INSUFFICIENT_QUANTITY')
+        }
+
+        // Step 5: Calculate rental amount
+        const pricePerDay = equipment.rentalPrice
+
+        const totalAmount = pricePerDay * rentalDuration * quantity
+
+        const amountInCents = Math.round(totalAmount * 0.0084 * 100)
+
+        if (amountInCents < 50) {
+          throw new Error('PAYMENT_AMOUNT_TOO_SMALL')
+        }
+
+        // Step 6: Create checkout intent
+        const newIntent = {
+          equipmentName: equipment.name,
+          userName,
+          userEmail,
+          equipmentId: equipmentObjectId,
+          startDate: rentalStartDate,
+          endDate: rentalEndDate,
+          rentalDuration,
+          quantity,
+          contactNumber,
+          deliveryAddress,
+          additionalNotes: additionalNotes || '',
+          pricePerDay,
+          totalAmount,
+          amountInCents,
+          currency: 'usd',
+          status: 'pending',
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+
+        const intentResult = await checkoutIntentsCollection.insertOne(
+          newIntent,
+          { session }
+        )
+
+        intent = {
+          ...newIntent,
+          _id: intentResult.insertedId,
+        }
+      })
+
+      // Step 7: Create Stripe Checkout Session
+      let stripeSession
 
       try {
-        session = await stripe.checkout.sessions.create({
+        stripeSession = await stripe.checkout.sessions.create({
           line_items: [
             {
               price_data: {
                 currency: 'usd',
                 product_data: {
-                  name: equipment.name,
-                  description: equipment.description,
+                  name: intent.equipmentName,
                 },
-                unit_amount: amountInCents,
+                unit_amount: intent.amountInCents,
               },
               quantity: 1,
             },
           ],
           mode: 'payment',
-          // success_url: `${env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-          // cancel_url: `${env.CLIENT_URL}/booking/cancel`,
+
+          expires_at: Math.floor(intent.expiresAt.getTime() / 1000),
+
           success_url: `${env.CLIENT_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${env.CLIENT_URL}/booking/cancel`,
+          cancel_url: `${env.CLIENT_URL}/booking/cancel?intent_id=${intent._id.toString()}`,
+          // cancel_url: `${env.CLIENT_URL}/booking/cancel`,
+
           metadata: {
-            checkoutIntentId: intentResult.insertedId.toString(),
+            checkoutIntentId: intent._id.toString(),
           },
         })
       } catch (error) {
-        // Remove intent if Stripe session creation fails
-        await checkoutIntentsCollection.deleteOne({
-          _id: intentResult.insertedId,
-        })
+        // Release reservation if Stripe session creation fails
+        await checkoutIntentsCollection.updateOne(
+          { _id: intent._id },
+          {
+            $set: {
+              status: 'failed',
+              updatedAt: new Date(),
+            },
+          }
+        )
 
         throw error
       }
 
-      // Step 10: Save Stripe session ID
+      // Step 8: Save Stripe Session ID
       await checkoutIntentsCollection.updateOne(
-        { _id: intentResult.insertedId },
+        { _id: intent._id },
         {
           $set: {
-            stripeSessionId: session.id,
+            stripeSessionId: stripeSession.id,
             updatedAt: new Date(),
           },
         }
       )
 
-      // Step 11: Send Checkout URL
+      // Step 9: Send Checkout URL
       return res.status(201).json({
         success: true,
         message: 'Checkout session created successfully',
         data: {
-          redirectUrl: session.url,
+          redirectUrl: stripeSession.url,
         },
       })
     } catch (error) {
       console.error('Create Checkout Session Error:', error)
 
+      if (error.message === 'EQUIPMENT_NOT_FOUND') {
+        return res.status(404).json({
+          success: false,
+          message: 'Equipment not found',
+        })
+      }
+
+      if (error.message === 'EQUIPMENT_NOT_AVAILABLE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Equipment is not available for booking',
+        })
+      }
+
+      if (error.message === 'INSUFFICIENT_QUANTITY') {
+        return res.status(400).json({
+          success: false,
+          message: 'Not enough equipment available for selected dates',
+        })
+      }
+
+      if (error.message === 'PAYMENT_AMOUNT_TOO_SMALL') {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment amount is too small',
+        })
+      }
+
       return res.status(500).json({
         success: false,
         message: 'Failed to create checkout session',
       })
+    } finally {
+      await session.endSession()
     }
   }
 )
 
-// Customer dashboard my-rentals api:
+// cancel booking api
+router.post(
+  '/cancel-checkout/:intentId',
+  checkAuthenticatedUser,
+  async (req, res) => {
+    try {
+      const { intentId } = req.params
+
+      // Validate intent ID
+      if (!ObjectId.isValid(intentId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid checkout intent ID',
+        })
+      }
+
+      // Find checkout intent belonging to the logged-in user
+      const intent = await checkoutIntentsCollection.findOne({
+        _id: new ObjectId(intentId),
+        userEmail: req.user.email,
+        status: 'pending',
+      })
+
+      if (!intent) {
+        return res.status(404).json({
+          success: false,
+          message: 'Checkout intent not found or already processed',
+        })
+      }
+
+      // Find Stripe session
+      const session = await stripe.checkout.sessions.retrieve(
+        intent.stripeSessionId
+      )
+
+      // Do not cancel an already completed payment
+      if (session.status === 'complete' || session.payment_status === 'paid') {
+        return res.status(409).json({
+          success: false,
+          message: 'Payment has already been completed',
+        })
+      }
+
+      // Expire the Stripe session to prevent later payment
+      if (session.status === 'open') {
+        await stripe.checkout.sessions.expire(session.id)
+      }
+
+      // Atomically update checkout intent
+      const updateResult = await checkoutIntentsCollection.updateOne(
+        {
+          _id: intent._id,
+          status: 'pending',
+        },
+        {
+          $set: {
+            status: 'cancelled',
+            updatedAt: new Date(),
+          },
+        }
+      )
+
+      if (updateResult.modifiedCount === 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Checkout has already been processed',
+        })
+      }
+
+      // Check if booking already exists
+      const existingBooking = await bookingsCollection.findOne({
+        stripeSessionId: session.id,
+      })
+
+      if (!existingBooking) {
+        const booking = {
+          stripeSessionId: session.id,
+          equipmentName: intent.equipmentName,
+
+          startDate: intent.startDate,
+          endDate: intent.endDate,
+          rentalDuration: intent.rentalDuration,
+
+          equipmentId: intent.equipmentId,
+          quantity: intent.quantity,
+          pricePerDay: intent.pricePerDay,
+          totalAmount: intent.totalAmount,
+
+          customerName: intent.userName,
+          userEmail: intent.userEmail,
+          contactNumber: intent.contactNumber,
+          deliveryAddress: intent.deliveryAddress,
+
+          additionalNotes: intent.additionalNotes,
+
+          bookingStatus: 'cancelled',
+          paymentStatus: 'unpaid',
+
+          cancelledAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+
+        await bookingsCollection.insertOne(booking)
+      }
+
+      return res.json({
+        success: true,
+        message: 'Booking cancellation recorded successfully',
+      })
+    } catch (error) {
+      console.error('Cancel checkout error:', error)
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to cancel checkout',
+      })
+    }
+  }
+)
 
 router.get('/my-rentals', checkAuthenticatedUser, async (req, res) => {
   const userEmail = req.user.email
