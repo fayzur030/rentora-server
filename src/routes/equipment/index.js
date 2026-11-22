@@ -371,4 +371,25 @@ router.get('/popular-equipments', async (req, res) => {
   }
 })
 
+router.get('/recently-added-equipments', async (req, res) => {
+  try {
+    const equipments = await equipmentCollection
+      .find({ status: 'approved' })
+      .sort({ createdAt: -1 })
+      .limit(4)
+      .toArray()
+
+    res.status(200).json({
+      success: true,
+      message: 'Recently added equipments fetched successfully',
+      data: equipments,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recently added equipments',
+    })
+  }
+})
+
 export default router
