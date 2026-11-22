@@ -126,7 +126,7 @@ router.delete(
 router.get(
   '/favorites',
   checkAuthenticatedUser,
-  verifyRole(['customer', 'admin']),
+
   async (req, res) => {
     try {
       const { userId } = req.query
