@@ -18,7 +18,6 @@ Backend API for Rentora, an equipment rental platform.
 - Favorites Management
 - Payment Management
 - Admin Dashboard & Analytics
-- Reusable Backend Pagination
 
 ### Installation
 
