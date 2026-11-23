@@ -121,7 +121,7 @@ router.get('/equipments', async (req, res) => {
     } else if (sort === 'price-high-to-low') {
       sortOption = { rentalPrice: -1 }
     } else if (sort === 'recently-added') {
-      sortOption = { createdAt: -1 }
+      sortOption = { createdAt: -1, _id: -1 }
     }
 
     // Fetch Equipments
@@ -379,7 +379,11 @@ router.get(
 router.get('/featured-equipment', async (req, res) => {
   try {
     const equipments = await equipmentCollection
-      .find({ status: 'approved' })
+      .find({
+        status: 'approved',
+        isFeatured: true,
+        availableQuantity: { $gt: 0 },
+      })
       .sort({ createdAt: -1 })
       .limit(6)
       .toArray()
@@ -394,6 +398,43 @@ router.get('/featured-equipment', async (req, res) => {
     })
   }
 })
+
+// feature remove only admin
+
+router.patch(
+  // '/equipment/:id/featured',
+  '/featured-equipment/:id',
+  checkAuthenticatedUser,
+  verifyRole(['admin']),
+  async (req, res) => {
+    try {
+      const { isFeatured } = req.body
+
+      const result = await equipmentCollection.updateOne(
+        { _id: new ObjectId(req.params.id) },
+        { $set: { isFeatured } }
+      )
+
+      if (!result.matchedCount) {
+        return res.status(404).json({
+          success: false,
+          message: 'Equipment not found',
+        })
+      }
+
+      sendSuccess(
+        res,
+        null,
+        `Equipment ${isFeatured ? 'featured' : 'removed from featured'} successfully`
+      )
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update featured status',
+      })
+    }
+  }
+)
 
 // popular equipment by category
 
@@ -420,7 +461,7 @@ router.get('/recently-added-equipments', async (req, res) => {
     const equipments = await equipmentCollection
       .find({ status: 'approved' })
       .sort({ createdAt: -1 })
-      .limit(4)
+      .limit(6)
       .toArray()
 
     res.status(200).json({
