@@ -53,7 +53,7 @@ router.post(
 router.get('/equipments', async (req, res) => {
   try {
     const query = {
-      availableQuantity: { $gt: 0 },
+      // availableQuantity: { $gt: 0 },
       status: 'approved',
     }
 
@@ -124,13 +124,39 @@ router.get('/equipments', async (req, res) => {
       sortOption = { createdAt: -1, _id: -1 }
     }
 
-    // Fetch Equipments
-    const equipments = await equipmentCollection
-      .find(query)
-      .sort(sortOption)
-      .toArray()
+    // Pagination
+    const page = Math.max(1, Number(req.query.page) || 1)
+    const limit = Math.max(1, Number(req.query.limit) || 6)
+    const skip = (page - 1) * limit
 
-    sendSuccess(res, equipments, 'Equipments fetched successfully')
+    // Fetch Equipments
+    const [equipments, totalEquipments] = await Promise.all([
+      equipmentCollection
+        .find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+
+      equipmentCollection.countDocuments(query),
+    ])
+    const totalPages = Math.ceil(totalEquipments / limit)
+
+    sendSuccess(
+      res,
+      {
+        equipments,
+        pagination: {
+          currentPage: page,
+          limit,
+          totalEquipments,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      },
+      'Equipments fetched successfully'
+    )
   } catch (error) {
     console.error('Get Equipments Error:', error)
 
