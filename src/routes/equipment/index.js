@@ -4,6 +4,7 @@ import {
   categoriesCollection,
   equipmentCollection,
   paymentsCollection,
+  userCollection,
 } from '../../config/db.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { ObjectId } from 'mongodb'
@@ -31,7 +32,7 @@ router.post(
         status: 'pending',
         createdAt: new Date(),
       }
-      console.log(equipmentData)
+
       const result = await equipmentCollection.insertOne(equipmentData)
 
       sendSuccess(
@@ -183,7 +184,24 @@ router.get('/equipment/:id', checkAuthenticatedUser, async (req, res) => {
       })
     }
 
-    sendSuccess(res, equipment, 'Equipment fetched successfully')
+    const ownerProfile = equipment.owner?.email
+      ? await userCollection.findOne(
+          { email: equipment.owner.email },
+          { projection: { image: 1 } }
+        )
+      : null
+
+    sendSuccess(
+      res,
+      {
+        ...equipment,
+        owner: {
+          ...equipment.owner,
+          image: ownerProfile?.image || equipment.owner?.image || '',
+        },
+      },
+      'Equipment fetched successfully'
+    )
   } catch (error) {
     res.status(500).json({
       success: false,
