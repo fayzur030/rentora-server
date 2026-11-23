@@ -14,7 +14,10 @@ router.get(
   verifyRole(['admin']),
   async (req, res) => {
     try {
-      const result = await userCollection.find().toArray()
+      const result = await userCollection
+        .find()
+        .sort({ createdAt: -1 })
+        .toArray()
       return sendSuccess(res, result, 'Users fetched successfully')
     } catch (error) {
       console.error('Get User Error:', error)

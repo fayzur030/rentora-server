@@ -443,28 +443,33 @@ router.post(
   }
 )
 
-router.get('/my-rentals', checkAuthenticatedUser, async (req, res) => {
-  const userEmail = req.user.email
-  try {
-    const bookingRental = await bookingsCollection
-      .find({ userEmail })
-      .sort({ createdAt: -1 })
-      .toArray()
+router.get(
+  '/my-rentals',
+  checkAuthenticatedUser,
+  verifyRole(['customer']),
+  async (req, res) => {
+    const userEmail = req.user.email
+    try {
+      const bookingRental = await bookingsCollection
+        .find({ userEmail })
+        .sort({ createdAt: -1 })
+        .toArray()
 
-    res.send({
-      success: true,
-      message: 'Booking rental successfully',
-      data: bookingRental,
-    })
-  } catch (error) {
-    console.error('Error fetching bookings rental', error)
-    res.status(500).send({
-      success: false,
-      message: 'Failed to fetch bookings rental',
-      error: error.message,
-    })
+      res.send({
+        success: true,
+        message: 'Booking rental successfully',
+        data: bookingRental,
+      })
+    } catch (error) {
+      console.error('Error fetching bookings rental', error)
+      res.status(500).send({
+        success: false,
+        message: 'Failed to fetch bookings rental',
+        error: error.message,
+      })
+    }
   }
-})
+)
 
 // all rental
 
