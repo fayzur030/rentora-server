@@ -21,6 +21,11 @@ router.post(
   checkAuthenticatedUser,
   verifyRole(['owner']),
   async (req, res) => {
+    const ownerProfile = await userCollection.findOne(
+      { email: req.user.email },
+      { projection: { image: 1 } }
+    )
+
     try {
       const equipmentData = {
         ...req.body,
@@ -28,6 +33,7 @@ router.post(
           ownerId: req.user.id,
           name: req.user.name,
           email: req.user.email,
+          image: ownerProfile?.image || '',
         },
         status: 'pending',
         createdAt: new Date(),
