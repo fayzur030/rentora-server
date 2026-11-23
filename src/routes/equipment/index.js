@@ -402,7 +402,6 @@ router.get('/featured-equipment', async (req, res) => {
 // feature remove only admin
 
 router.patch(
-  // '/equipment/:id/featured',
   '/featured-equipment/:id',
   checkAuthenticatedUser,
   verifyRole(['admin']),
